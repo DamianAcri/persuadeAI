@@ -1,47 +1,51 @@
 "use client";
-import { useRouter } from 'next/navigation';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useState } from 'react';
+
+import { useEffect, useState } from "react";
+import { User } from "@supabase/supabase-js";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const router = useRouter();
-  const supabase = useSupabaseClient();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClientComponentClient();
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Error al cerrar sesión:", error.message);
-        alert("Error al cerrar sesión: " + error.message);
-      } else {
-        console.log("Sesión cerrada correctamente");
-        router.push('/auth/login');
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          // If no session, redirect to login
+          console.log("No active session, redirecting to login");
+          router.push("/auth/login");
+          return;
+        }
+        
+        // User is authenticated, set user data
+        setUser(session.user);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        router.push("/auth/login");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      console.error("Error inesperado:", e);
-      alert("Error inesperado al cerrar sesión");
-    } finally {
-      setIsLoggingOut(false);
     }
-  };
+    
+    checkSession();
+  }, [router, supabase.auth]);
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center py-2">
-      <header className="w-full flex justify-end p-4">
-        <button 
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-        >
-          {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
-        </button>
-      </header>
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
-        <h1 className="text-6xl font-bold">Dashboard</h1>
-      </main>
-    </div>
-  );
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-xl">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  // Render dashboard once user is authenticated
+  return <DashboardOverview />;
 }
