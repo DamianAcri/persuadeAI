@@ -45,7 +45,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center py-2">
       <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
         <h1 className="text-6xl font-bold">
-          Welcome to <a className="text-blue-600" href="#">Your SaaS</a>
+          Welcome to <a className="text-blue-600" href="#">FHDSOIFHIS</a>
         </h1>
         <p className="mt-3 text-2xl">
           Get started by signing up or logging in

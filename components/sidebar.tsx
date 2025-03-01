@@ -14,7 +14,7 @@ export function Sidebar() {
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: Home },
-    { name: "Conversation Analysis", href: "/analysis", icon: BarChart3 },
+    { name: "Conversation Analysis", href: "/ai/analysis", icon: BarChart3 },
     { name: "Real-time Assistance", href: "/real-time", icon: Mic },
     { name: "Sales Script Evaluation", href: "/scripts", icon: ScrollText },
     { name: "Sales Simulations", href: "/simulations", icon: MessageSquare },
