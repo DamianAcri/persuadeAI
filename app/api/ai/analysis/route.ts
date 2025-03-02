@@ -114,7 +114,7 @@ Please provide your analysis in the following JSON format:
       messages: [
         {
           role: "system",
-          content: "You are an expert in sales and persuasion techniques. Analyze the conversation and provide detailed feedback.",
+          content: "You are an expert in sales and persuasion techniques. Analyze the conversation and provide detailed feedback. Be as blunt as possible.",
         },
         { role: "user", content: prompt },
       ],
