@@ -10,6 +10,10 @@ interface SaveAnalysisParams {
   tips: string[];
   overall: string;
   score: number;
+  objection_handling: number;
+  active_listening: number;
+  value_proposition: number;
+  closing_techniques: number;
 }
 
 // Función para usar en componentes del cliente
@@ -25,7 +29,11 @@ export function useAnalysisService() {
       weaknesses,
       tips,
       overall,
-      score
+      score,
+      objection_handling,
+      active_listening,
+      value_proposition,
+      closing_techniques
     }: SaveAnalysisParams) {
       try {
         console.log('📝 [analysis] Iniciando guardado de análisis...');
@@ -61,6 +69,11 @@ export function useAnalysisService() {
           tips: JSON.stringify(tips),
           overall,
           score,
+          // Add new metrics
+          objection_handling,
+          active_listening,
+          value_proposition,
+          closing_techniques,
           created_at: new Date().toISOString()
         };
 
@@ -72,7 +85,11 @@ export function useAnalysisService() {
           strengths_count: strengths.length,
           weaknesses_count: weaknesses.length,
           tips_count: tips.length,
-          score
+          score,
+          objection_handling,
+          active_listening,
+          value_proposition,
+          closing_techniques
         });
         
         // Realizar la inserción en la base de datos con tiempo de espera más largo

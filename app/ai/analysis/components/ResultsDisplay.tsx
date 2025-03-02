@@ -10,6 +10,10 @@ interface AnalysisResult {
   tips: string[];
   overall: string;
   score: number;
+  objection_handling: number;
+  active_listening: number;
+  value_proposition: number;
+  closing_techniques: number;
   authenticated?: boolean;
   userId?: string;
 }
@@ -27,7 +31,7 @@ export default function ResultsDisplay({
 }: ResultsDisplayProps) {
   // Estado actual
   const [activeTab, setActiveTab] = useState<
-    "overview" | "strengths" | "weaknesses" | "tips"
+    "overview" | "strengths" | "weaknesses" | "tips" | "detailed_metrics"
   >("overview");
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
@@ -115,6 +119,11 @@ export default function ResultsDisplay({
             tips,
             overall: result.overall,
             score: result.score,
+            // Add new metrics
+            objection_handling: result.objection_handling,
+            active_listening: result.active_listening,
+            value_proposition: result.value_proposition,
+            closing_techniques: result.closing_techniques,
             created_at: new Date().toISOString()
           }
         ])
@@ -162,6 +171,24 @@ export default function ResultsDisplay({
 
   const handleLoginRedirect = () => {
     router.push(`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname)}`);
+  };
+
+  // Function to render metric gauge
+  const renderMetricGauge = (label: string, value: number) => {
+    return (
+      <div className="mb-4">
+        <div className="flex justify-between mb-1">
+          <span className="text-sm font-medium text-gray-700">{label}</span>
+          <span className={`text-sm font-medium ${getScoreColor(value)}`}>{value.toFixed(1)}/10</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-3">
+          <div
+            className={`h-3 rounded-full ${value >= 8 ? 'bg-green-600' : value >= 6 ? 'bg-blue-600' : value >= 4 ? 'bg-yellow-600' : 'bg-red-600'}`}
+            style={{ width: getProgressWidth(value) }}
+          ></div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -245,9 +272,9 @@ export default function ResultsDisplay({
         </div>
       </div>
 
-      {/* Tabs y contenido restante... */}
+      {/* Tabs */}
       <div className="bg-gray-50 border-b">
-        <nav className="flex">
+        <nav className="flex flex-wrap">
           <button
             onClick={() => setActiveTab("overview")}
             className={`px-4 py-3 text-sm font-medium ${
@@ -257,6 +284,16 @@ export default function ResultsDisplay({
             }`}
           >
             Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("detailed_metrics")}
+            className={`px-4 py-3 text-sm font-medium ${
+              activeTab === "detailed_metrics"
+                ? "border-b-2 border-purple-500 text-purple-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Detailed Metrics
           </button>
           <button
             onClick={() => setActiveTab("strengths")}
@@ -384,10 +421,66 @@ export default function ResultsDisplay({
                 </ul>
               </div>
             </div>
+
+            {/* Preview of detailed metrics */}
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-medium text-gray-700">Skill Breakdown</h4>
+                <button
+                  onClick={() => setActiveTab("detailed_metrics")}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View detailed metrics
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderMetricGauge("Objection Handling", result.objection_handling)}
+                {renderMetricGauge("Active Listening", result.active_listening)}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Resto de las pestañas... */}
+        {activeTab === "detailed_metrics" && (
+          <div>
+            <h4 className="font-medium text-purple-700 mb-4">Detailed Performance Metrics</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-4 rounded-lg border">
+                {renderMetricGauge("Objection Handling", result.objection_handling)}
+                <p className="text-sm text-gray-600 mb-4">
+                  Measures how effectively you address and overcome customer concerns and objections.
+                </p>
+                
+                {renderMetricGauge("Active Listening", result.active_listening)}
+                <p className="text-sm text-gray-600">
+                  Assesses your ability to understand customer needs through attentive listening.
+                </p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border">
+                {renderMetricGauge("Value Proposition", result.value_proposition)}
+                <p className="text-sm text-gray-600 mb-4">
+                  Evaluates how well you communicate the unique value and benefits of your offering.
+                </p>
+                
+                {renderMetricGauge("Closing Techniques", result.closing_techniques)}
+                <p className="text-sm text-gray-600">
+                  Rates your ability to guide the conversation toward a successful conclusion or next steps.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-100">
+              <h5 className="font-medium text-purple-700 mb-2">What This Means</h5>
+              <p className="text-sm text-gray-700">
+                These metrics provide a breakdown of specific sales skills demonstrated in your conversation. 
+                Scores of 8-10 indicate excellent performance, 6-7 good performance, 4-5 average performance, 
+                and below 4 areas needing significant improvement. Focus your training efforts on your lowest-scoring areas.
+              </p>
+            </div>
+          </div>
+        )}
+
         {activeTab === "strengths" && (
           <div>
             <h4 className="font-medium text-green-700 mb-4">Strengths</h4>

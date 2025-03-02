@@ -101,7 +101,11 @@ Please provide your analysis in the following JSON format:
   "weaknesses": ["weakness1", "weakness2", ...],
   "tips": ["tip1", "tip2", ...],
   "overall": "overall assessment",
-  "score": numeric_score_between_1_and_10
+  "score": numeric_score_between_1_and_10,
+  "objection_handling": numeric_score_between_1_and_10,
+  "active_listening": numeric_score_between_1_and_10,
+  "value_proposition": numeric_score_between_1_and_10,
+  "closing_techniques": numeric_score_between_1_and_10
 }
 `;
 
