@@ -7,7 +7,7 @@ import { analyzeConversation } from '@/app/ai/analysis/service/analysisService';
 import ResultsDisplay from '@/app/ai/analysis/components/ResultsDisplay';
 import { FileUploadHandler } from '@/app/ai/analysis/components/FileUploadHandler';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { checkSupabaseSession } from "@/lib/supabaseCliente";
+import { checkSupabaseSession } from "@/lib/supabase";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface AnalysisFormProps {

@@ -1,8 +1,10 @@
+// lib/auth-context.tsx
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseClient } from './supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +14,7 @@ interface AuthContextType {
   refreshAuth: () => Promise<void>;
 }
 
+// Default context values
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
@@ -27,86 +30,86 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseClient();
 
-  // Función para actualizar el estado de autenticación
+  // Function to update authentication state
   const refreshAuth = async () => {
     try {
-      console.log("🔄 [AuthContext] Actualizando estado de autenticación...");
+      console.log("🔄 [AuthContext] Refreshing authentication state...");
       
-      // Verificar sesión
-      const { data: sessionData, error } = await supabase.auth.getSession();
+      // Check session
+      const { data, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error("❌ [AuthContext] Error al obtener sesión:", error);
+        console.error("❌ [AuthContext] Error getting session:", error);
         setSession(null);
         setUser(null);
         setIsAuthenticated(false);
         return;
       }
       
-      if (sessionData?.session) {
-        setSession(sessionData.session);
-        setUser(sessionData.session.user);
+      if (data?.session) {
+        setSession(data.session);
+        setUser(data.session.user);
         setIsAuthenticated(true);
-        console.log("✅ [AuthContext] Sesión actualizada - Usuario autenticado:", sessionData.session.user.id);
+        console.log("✅ [AuthContext] Session updated - User authenticated:", data.session.user.id);
         
-        // Mostrar cuando expira la sesión
-        const expiresAt = sessionData.session.expires_at;
+        // Show session expiration time
+        const expiresAt = data.session.expires_at;
         if (expiresAt) {
           const expirationDate = new Date(expiresAt * 1000);
           const now = new Date();
           const minutesRemaining = Math.round((expirationDate.getTime() - now.getTime()) / (1000 * 60));
-          console.log(`⏰ [AuthContext] La sesión expira en ${minutesRemaining} minutos (${expirationDate.toLocaleString()})`);
+          console.log(`⏰ [AuthContext] Session expires in ${minutesRemaining} minutes (${expirationDate.toLocaleString()})`);
         }
       } else {
         setSession(null);
         setUser(null);
         setIsAuthenticated(false);
-        console.log("❌ [AuthContext] No hay sesión activa");
+        console.log("❌ [AuthContext] No active session");
       }
     } catch (error) {
-      console.error("❌ [AuthContext] Error en refreshAuth:", error);
+      console.error("❌ [AuthContext] Error in refreshAuth:", error);
       setSession(null);
       setUser(null);
       setIsAuthenticated(false);
     }
   };
 
-  // Inicializar y escuchar cambios de autenticación
+  // Initialize and listen for authentication changes
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
       
       try {
-        // Verificar si hay sesión al cargar
+        // Check if there's a session on load
         await refreshAuth();
         
-        // Configurar listener para cambios en la autenticación
+        // Setup listener for authentication changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, currentSession) => {
-            console.log(`🔔 [AuthContext] Evento de autenticación: ${event}`);
+            console.log(`🔔 [AuthContext] Authentication event: ${event}`);
             
             if (currentSession) {
               setSession(currentSession);
               setUser(currentSession.user);
               setIsAuthenticated(true);
-              console.log("✅ [AuthContext] Usuario autenticado:", currentSession.user.id);
+              console.log("✅ [AuthContext] User authenticated:", currentSession.user.id);
             } else {
               setSession(null);
               setUser(null);
               setIsAuthenticated(false);
-              console.log("❌ [AuthContext] No hay usuario autenticado");
+              console.log("❌ [AuthContext] No authenticated user");
             }
           }
         );
         
-        // Limpiar el listener al desmontar
+        // Cleanup listener on unmount
         return () => {
           subscription.unsubscribe();
         };
       } catch (error) {
-        console.error("❌ [AuthContext] Error inicializando autenticación:", error);
+        console.error("❌ [AuthContext] Error initializing authentication:", error);
       } finally {
         setIsLoading(false);
       }

@@ -1,12 +1,13 @@
+// app/layout.tsx
 "use client";
-import { useEffect, useState } from "react";
-import type React from "react";
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { usePathname } from "next/navigation";
-import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/lib/auth-context";
+import { Providers } from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -55,9 +56,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
+        <Providers>
           <AppContent>{children}</AppContent>
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

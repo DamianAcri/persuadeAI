@@ -1,4 +1,4 @@
-import { supabase, checkSupabaseSession } from '@/lib/supabaseCliente';
+import { supabase, checkSupabaseSession } from '@/lib/supabase';
 
 // app/ai/analysis/service/analysisService.ts
 interface AnalysisParams {

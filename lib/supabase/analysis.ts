@@ -1,5 +1,7 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/types/supabase';
+// lib/supabase/analysis.ts
+
+import { createSupabaseClient } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 
 interface SaveAnalysisParams {
   userId?: string;
@@ -16,9 +18,10 @@ interface SaveAnalysisParams {
   closing_techniques: number;
 }
 
-// Función para usar en componentes del cliente
+// Function for client components
 export function useAnalysisService() {
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createSupabaseClient();
+  const { user } = useAuth();
   
   return {
     async saveAnalysisResult({
@@ -36,30 +39,23 @@ export function useAnalysisService() {
       closing_techniques
     }: SaveAnalysisParams) {
       try {
-        console.log('📝 [analysis] Iniciando guardado de análisis...');
+        console.log('📝 [analysis] Starting analysis save...');
         
-        // Verificar sesión antes de intentar guardar
-        const { data: sessionData } = await supabase.auth.getSession();
+        // Determine final user ID
+        let finalUserId = userId || user?.id;
         
-        // Determinar el ID de usuario final
-        let finalUserId = userId;
-        if (!finalUserId && sessionData?.session?.user) {
-          finalUserId = sessionData.session.user.id;
-          console.log('👤 [analysis] Usando ID de usuario de la sesión:', finalUserId);
-        }
-        
-        // Si no hay ID de usuario, no podemos guardar
+        // If no user ID, we can't save
         if (!finalUserId) {
-          console.error('❌ [analysis] No hay ID de usuario para guardar');
+          console.error('❌ [analysis] No user ID to save');
           return { 
             success: false, 
-            error: 'Debes iniciar sesión para guardar el análisis'
+            error: 'You must be logged in to save analysis'
           };
         }
         
-        console.log('📊 [analysis] Preparando datos para usuario:', finalUserId);
+        console.log('📊 [analysis] Preparing data for user:', finalUserId);
         
-        // Convertir arrays a formato JSON string para compatibilidad con Postgres
+        // Convert arrays to JSON string format for Postgres compatibility
         const analysisData = {
           user_id: finalUserId,
           conversation,
@@ -77,9 +73,9 @@ export function useAnalysisService() {
           created_at: new Date().toISOString()
         };
 
-        console.log('🧪 [analysis] Verificando estructura de datos a insertar:', {
+        console.log('🧪 [analysis] Verifying data structure to insert:', {
           user_id: finalUserId,
-          // Mostrar primeros caracteres para evitar logs muy grandes
+          // Show first characters to avoid very large logs
           conversation: conversation.substring(0, 50) + '...',
           context: (context || '').substring(0, 50) + '...',
           strengths_count: strengths.length,
@@ -92,7 +88,7 @@ export function useAnalysisService() {
           closing_techniques
         });
         
-        // Realizar la inserción en la base de datos con tiempo de espera más largo
+        // Perform database insertion
         const { data, error } = await supabase
           .from('analysis_results')
           .insert([analysisData])
@@ -100,71 +96,71 @@ export function useAnalysisService() {
           .single();
        
         if (error) {
-          console.error('❌ [analysis] Error de Supabase:', error);
-          console.error('❌ [analysis] Código de error:', error.code);
-          console.error('❌ [analysis] Detalles:', error.details);
-          console.error('❌ [analysis] Mensaje:', error.message);
+          console.error('❌ [analysis] Supabase error:', error);
+          console.error('❌ [analysis] Error code:', error.code);
+          console.error('❌ [analysis] Details:', error.details);
+          console.error('❌ [analysis] Message:', error.message);
           
-          // Manejar errores específicos
+          // Handle specific errors
           if (error.code === '23503') {
             return { 
               success: false, 
-              error: 'Error de clave foránea: El usuario no existe en la base de datos'
+              error: 'Foreign key error: User does not exist in database'
             };
           }
           
           if (error.code === '23505') {
             return { 
               success: false, 
-              error: 'Este análisis ya existe en la base de datos'
+              error: 'This analysis already exists in the database'
             };
           }
           
           if (error.code === '42P01') {
             return { 
               success: false, 
-              error: 'La tabla analysis_results no existe. Verifica la estructura de la base de datos.'
+              error: 'The analysis_results table does not exist. Verify database structure.'
             };
           }
           
           return { 
             success: false, 
-            error: `Error de base de datos: ${error.message}`
+            error: `Database error: ${error.message}`
           };
         }
        
         if (!data) {
-          console.error('❌ [analysis] No se recibieron datos de la inserción');
+          console.error('❌ [analysis] No data received from insertion');
           return { 
             success: false, 
-            error: 'Se creó el registro pero no se pudo obtener su ID'
+            error: 'Record created but could not get its ID'
           };
         }
         
-        console.log('✅ [analysis] Análisis guardado exitosamente con ID:', data.id);
+        console.log('✅ [analysis] Analysis saved successfully with ID:', data.id);
         return { success: true, resultId: data.id };
       } catch (error: any) {
-        console.error('❌ [analysis] Excepción durante el guardado:', error);
+        console.error('❌ [analysis] Exception during save:', error);
         return {
           success: false,
-          error: error.message || 'Error desconocido al guardar análisis'
+          error: error.message || 'Unknown error saving analysis'
         };
       }
     },
     
-    // Resto de funciones igual
+    // Rest of functions
     async getUserAnalysisHistory() {
       try {
-        console.log('📊 [analysis] Obteniendo historial...');
+        console.log('📊 [analysis] Getting history...');
         
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session?.user) {
-          console.error('❌ [analysis] No hay usuario autenticado para obtener historial');
+        // Use the user from auth context
+        if (!user?.id) {
+          console.error('❌ [analysis] No authenticated user to get history');
           return [];
         }
         
-        const userId = sessionData.session.user.id;
-        console.log('👤 [analysis] Obteniendo historial para usuario:', userId);
+        const userId = user.id;
+        console.log('👤 [analysis] Getting history for user:', userId);
         
         const { data, error } = await supabase
           .from('analysis_results')
@@ -173,37 +169,43 @@ export function useAnalysisService() {
           .order('created_at', { ascending: false });
        
         if (error) {
-          console.error('❌ [analysis] Error al obtener historial:', error);
+          console.error('❌ [analysis] Error getting history:', error);
           throw error;
         }
        
-        console.log('✅ [analysis] Historial obtenido:', data.length, 'resultados');
+        console.log('✅ [analysis] History obtained:', data.length, 'results');
         return data;
       } catch (error) {
-        console.error('❌ [analysis] Error en getUserAnalysisHistory:', error);
+        console.error('❌ [analysis] Error in getUserAnalysisHistory:', error);
         throw error;
       }
     },
    
-    async getAnalysisResult(resultId: number, userId: string) {
+    async getAnalysisResult(resultId: number) {
       try {
-        console.log('Obteniendo resultado de análisis para resultId:', resultId, 'y userId:', userId);
+        // Use the user from auth context
+        if (!user?.id) {
+          console.error('❌ [analysis] No authenticated user to get result');
+          throw new Error('Authentication required');
+        }
+        
+        console.log('Getting analysis result for resultId:', resultId, 'and userId:', user.id);
         const { data, error } = await supabase
           .from('analysis_results')
           .select('*')
           .eq('id', resultId)
-          .eq('user_id', userId)
+          .eq('user_id', user.id)
           .single();
          
         if (error) {
-          console.error('Error al obtener resultado de análisis:', error);
+          console.error('Error getting analysis result:', error);
           throw error;
         }
        
-        console.log('Resultado de análisis obtenido exitosamente:', data);
+        console.log('Analysis result obtained successfully:', data);
         return data;
       } catch (error) {
-        console.error('Error en getAnalysisResult:', error);
+        console.error('Error in getAnalysisResult:', error);
         throw error;
       }
     }
