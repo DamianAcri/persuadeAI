@@ -7,13 +7,15 @@ import { analyzeConversation } from '@/app/ai/analysis/service/analysisService';
 import ResultsDisplay from '@/app/ai/analysis/components/ResultsDisplay';
 import { FileUploadHandler } from '@/app/ai/analysis/components/FileUploadHandler';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { checkSupabaseSession } from "@/lib/supabaseCliente";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface AnalysisFormProps {
   initialConversation?: string;
   initialMethod?: string;
 }
-
 export default function AnalysisForm({ initialConversation = '', initialMethod = 'paste' }: AnalysisFormProps) {
+  const supabase = createClientComponentClient();
   const [conversation, setConversation] = useState<string>(initialConversation);
   const [context, setContext] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -21,6 +23,7 @@ export default function AnalysisForm({ initialConversation = '', initialMethod =
   const [error, setError] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<string>(initialMethod);
   const [fileUploaded, setFileUploaded] = useState<boolean>(!!initialConversation && initialMethod === 'upload');
+  const [sessionStatus, setSessionStatus] = useState({ checked: false, exists: false });
 
   // Effect to update the conversation state if initialConversation changes
   useEffect(() => {
@@ -32,6 +35,35 @@ export default function AnalysisForm({ initialConversation = '', initialMethod =
     }
   }, [initialConversation, initialMethod]);
 
+  // Verificar la sesión al cargar el componente
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const { hasSession, userId } = await checkSupabaseSession();
+        setSessionStatus({ checked: true, exists: hasSession });
+        
+        console.log(`🔍 [AnalysisForm] Estado de sesión: ${hasSession ? 'Activa ✅' : 'Inactiva ❌'}, Usuario: ${userId || 'No autenticado'}`);
+        
+        // Si hay sesión, verificar detalles para depuración
+        if (hasSession) {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            console.log(`🕒 [AnalysisForm] Token expira: ${new Date(data.session.expires_at! * 1000).toLocaleString()}`);
+            console.log(`🔑 [AnalysisForm] Token actual:`, data.session.access_token.substring(0, 10) + '...');
+          }
+        }
+      } catch (error) {
+        console.error('❌ [AnalysisForm] Error verificando sesión:', error);
+      }
+    };
+    
+    verifySession();
+    // Verificar la sesión cada 30 segundos
+    const interval = setInterval(verifySession, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!conversation.trim()) {
@@ -39,19 +71,35 @@ export default function AnalysisForm({ initialConversation = '', initialMethod =
       return;
     }
     
-    setLoading(true);
-    setError(null);
-    
+    // Verificar explícitamente la sesión antes de enviar
     try {
+      console.log('🔄 [AnalysisForm] Verificando sesión antes de enviar...');
+      
+      // Actualizar la sesión si es necesario
+      const { data: authData } = await supabase.auth.getSession();
+      if (authData.session) {
+        console.log('✅ [AnalysisForm] Sesión válida antes de análisis:', authData.session.user.id);
+      } else {
+        console.log('⚠️ [AnalysisForm] No hay sesión activa antes de análisis');
+      }
+      
+      setLoading(true);
+      setError(null);
+      
       const analysisResult = await analyzeConversation({
         conversation,
         context
       });
       
+      // Verificar si el resultado indica autenticación
+      if (analysisResult) {
+        console.log(`🔐 [AnalysisForm] Análisis completado - Autenticado: ${analysisResult.authenticated ? 'Sí' : 'No'}`);
+      }
+      
       setResult(analysisResult);
     } catch (err: any) {
       setError(err.message || 'Error analyzing conversation. Please try again.');
-      console.error(err);
+      console.error('❌ [AnalysisForm] Error:', err);
     } finally {
       setLoading(false);
     }
@@ -187,7 +235,7 @@ Salesperson: I understand price is important. What features are you specifically
           </div>
         )}
         
-        {result && <ResultsDisplay result={result} />}
+        {result && <ResultsDisplay result={result} conversation={conversation} context={context} />}
       </div>
     </div>
   );

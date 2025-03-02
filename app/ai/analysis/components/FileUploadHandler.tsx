@@ -1,3 +1,4 @@
+// app/ai/analysis/components/FileUploadHandler.tsx
 "use client";
 
 import { useState, useRef } from 'react';
