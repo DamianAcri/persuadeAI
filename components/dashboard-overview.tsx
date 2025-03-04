@@ -119,37 +119,46 @@ export function DashboardOverview() {
 
   // Function to get stats directly from analysis_results table
   async function getStatsFromAnalysisResults(userId: string): Promise<DashboardStats> {
-    // Query analysis_results table
-    const { data: analysisData, error } = await supabase
+    // Query analysis_results table for conversation analysis data
+    const { data: analysisData, error: analysisError } = await supabase
       .from('analysis_results')
       .select('created_at, score, objection_handling, active_listening, value_proposition, closing_techniques')
       .eq('user_id', userId);
       
-    if (error) {
-      console.error(`❌ Error getting analysis data: ${error.message}`);
-      throw error;
+    // Query pitch_summary table for script analysis data
+    const { data: scriptData, error: scriptError } = await supabase
+      .from('pitch_summary')
+      .select('created_at, score')
+      .eq('user_id', userId);
+    
+    if ((analysisError && !analysisData) && (scriptError && !scriptData)) {
+      console.error(`❌ Error getting analysis data: ${analysisError?.message || scriptError?.message}`);
+      throw new Error("No data found");
     }
     
-    if (!analysisData || analysisData.length === 0) {
+    // Combine data from both sources
+    const analysisCount = analysisData?.length || 0;
+    const scriptCount = scriptData?.length || 0;
+    const totalConversations = analysisCount + scriptCount;
+    
+    if (totalConversations === 0) {
       console.log(`⚠️ No analysis data found for user ${userId}`);
       throw new Error("No data found");
     }
     
-    console.log(`✅ Found ${analysisData.length} analysis records`);
+    console.log(`✅ Found ${analysisCount} conversation analysis records and ${scriptCount} script analysis records`);
     
-    // Calculate stats from analysis data
-    const totalConversations = analysisData.length;
+    // Calculate average score across both types
+    const totalAnalysisScore = analysisData?.reduce((sum, item) => sum + (item.score || 0), 0) || 0;
+    const totalScriptScore = scriptData?.reduce((sum, item) => sum + (item.score || 0), 0) || 0;
+    const averageScore = Math.round(((totalAnalysisScore + totalScriptScore) / totalConversations) * 10); // Convert to percentage
     
-    // Calculate average score
-    const totalScore = analysisData.reduce((sum, item) => sum + (item.score || 0), 0);
-    const averageScore = Math.round((totalScore / totalConversations) * 10); // Convert to percentage
-    
-    // Calculate practice time (assume 15 minutes per analysis)
-    const totalMinutes = totalConversations * 15;
+    // Calculate practice time (assume 15 minutes per analysis, 10 minutes per script)
+    const totalMinutes = (analysisCount * 15) + (scriptCount * 10);
     const practiceHours = Math.floor(totalMinutes / 60);
     const practiceMinutes = totalMinutes % 60;
     
-    // Calculate skill averages
+    // Calculate skill averages (only from conversation analysis as scripts don't have these fields)
     const skills = {
       objectionHandling: 0,
       activeListing: 0, 
@@ -164,7 +173,7 @@ export function DashboardOverview() {
       closingTechniques: 0
     };
     
-    analysisData.forEach(item => {
+    analysisData?.forEach(item => {
       // Sum up non-null values
       if (item.objection_handling != null) {
         skills.objectionHandling += item.objection_handling * 10;
@@ -210,7 +219,7 @@ export function DashboardOverview() {
     return {
       totalConversations,
       averageScore,
-      simulations: Math.floor(totalConversations / 2), // Estimate
+      simulations: Math.floor(analysisCount / 2), // Estimate
       practiceTime: {
         hours: practiceHours,
         minutes: practiceMinutes
@@ -222,7 +231,7 @@ export function DashboardOverview() {
   // Get demo data for when there's no real data
   function getDemoData(): DashboardStats {
     return {
-      totalConversations: 12,
+      totalConversations: 13,
       averageScore: 82,
       simulations: 5,
       practiceTime: {
@@ -476,7 +485,7 @@ export function DashboardOverview() {
               </CardContent>
               <CardFooter>
                 <Link
-                  href="/scripts"
+                  href="/ai/script-analysis"
                   className="flex items-center text-sm text-primary"
                 >
                   Go to Script Evaluation

@@ -3,19 +3,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { DashboardHeader } from "@/components/analysis-dashboard-header";
-import AnalysisForm from "@/app/ai/analysis/components/AnalysisForm";
-import { useSearchParams } from "next/navigation";
+import { ScriptEvaluation } from "@/components/script-evaluation";
 
-export default function AnalysisPage() {
+export const metadata = {
+  title: "Sales Script Evaluation | PersuadeAI",
+  description: "Improve your sales scripts with AI-powered feedback",
+};
+
+export default function ScriptsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const supabase = createClientComponentClient();
-  const searchParams = useSearchParams();
-  const extractedText = searchParams ? searchParams.get("extracted") || "" : "";
-  const method = searchParams ? searchParams.get("method") || "paste" : "paste";
 
+  // Verificar autenticación tal como en el dashboard
   useEffect(() => {
     async function checkSession() {
       try {
@@ -23,10 +24,11 @@ export default function AnalysisPage() {
         
         if (!session) {
           console.log("No active session, redirecting to login");
-          router.push("/auth/login?returnUrl=/ai/analysis");
+          router.push("/auth/login?returnUrl=/scripts");
           return;
         }
         
+        // User is authenticated
         setIsAuthenticated(true);
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -38,10 +40,12 @@ export default function AnalysisPage() {
     
     checkSession();
     
+    // Importante: verificar periódicamente la autenticación
     const interval = setInterval(checkSession, 10000);
     return () => clearInterval(interval);
   }, [router, supabase.auth]);
 
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -50,7 +54,8 @@ export default function AnalysisPage() {
       </div>
     );
   }
-
+  
+  // Si no está autenticado, mostrar mensaje mientras se redirige
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -59,17 +64,7 @@ export default function AnalysisPage() {
       </div>
     );
   }
-  
-  return (
-    <div className="flex flex-col min-h-screen">
-      <DashboardHeader 
-        title="Conversation Analysis" 
-        description="Upload or paste your sales conversations for AI-powered feedback and insights." 
-      />
-      
-      <main className="flex-1 container mx-auto py-6 px-4">
-        <AnalysisForm initialConversation={extractedText} initialMethod={method} />
-      </main>
-    </div>
-  );
+
+  // Render content if authenticated
+  return <ScriptEvaluation />;
 }

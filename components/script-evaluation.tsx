@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { CheckCircle2, ChevronUp, Copy, Download, Edit, FileText, Plus, Save, Trash, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,16 +22,79 @@ export function ScriptEvaluation() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const supabase = createClientComponentClient()
 
-  const handleAnalyzeScript = () => {
+  // Get user ID on component mount
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        setUserId(data.session.user.id)
+      }
+    }
+    
+    getUser()
+  }, [supabase])
+
+  const handleAnalyzeScript = async () => {
+    // Ensure user is authenticated
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) {
+      alert("You must be logged in to analyze scripts")
+      return
+    }
+    
     setIsAnalyzing(true)
 
-    // Simulate analysis completion after 2 seconds
-    setTimeout(() => {
+    try {
+      // Make API call to analyze script
+      const response = await fetch("/api/ai/script-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          script: scriptContent,
+          targetAudience: "Sales Prospects",
+          productType: "SaaS"
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error("Script analysis failed")
+      }
+      
+      const result = await response.json()
+      
+      // Save analysis result to database
+      const { error } = await supabase
+        .from('pitch_summary')
+        .insert([
+          {
+            user_id: data.session.user.id,
+            summary: result.overall_quality,
+            score: result.persuasiveness_score, 
+            strengths: result.strengths,
+            weaknesses: result.weaknesses,
+            recommendations: result.suggestions,
+            conversation: scriptContent,
+            created_at: new Date().toISOString()
+          }
+        ])
+      
+      if (error) {
+        console.error("Failed to save analysis:", error)
+      }
+      
       setIsAnalyzing(false)
       setAnalysisComplete(true)
       setActiveTab("feedback")
-    }, 2000)
+    } catch (error) {
+      console.error("Script analysis error:", error)
+      setIsAnalyzing(false)
+      alert("Failed to analyze script. Please try again.")
+    }
   }
 
   const handleSaveScript = () => {

@@ -1,4 +1,3 @@
-// app/layout.tsx
 "use client";
 
 import { Inter } from "next/font/google";
@@ -8,6 +7,8 @@ import { Sidebar } from "@/components/sidebar";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Providers } from "./providers";
+import { useEffect, useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -53,11 +54,51 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [authChecked, setAuthChecked] = useState(false);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("🔐 Auth state changed:", event);
+        
+        // Handle auth events as needed
+        if (event === 'SIGNED_OUT') {
+          console.log("👋 User signed out, redirecting to home");
+          window.location.href = "/";
+        }
+      }
+    );
+    
+    // Initial auth check
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      console.log("🔍 Initial auth check:", data.session ? "Authenticated" : "Not authenticated");
+      setAuthChecked(true);
+    };
+    
+    checkAuth();
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Always render the HTML and body tags, even while loading
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={inter.className}>
+      <body>
         <Providers>
-          <AppContent>{children}</AppContent>
+          {/* Show loading indicator or the actual content */}
+          {!authChecked ? (
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <AppContent>{children}</AppContent>
+          )}
         </Providers>
       </body>
     </html>

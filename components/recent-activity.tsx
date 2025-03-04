@@ -80,31 +80,30 @@ export function RecentActivity({ extended = false }: RecentActivityProps) {
         // Limit based on extended prop
         const limit = extended ? 10 : 5
         
-        // Directly query analysis_results table
-        const { data: analysisData, error } = await supabase
+        // Query both analysis_results and pitch_summary tables
+        const { data: analysisData, error: analysisError } = await supabase
           .from('analysis_results')
           .select('id, user_id, created_at, score, overall')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(limit)
         
-        if (error) {
-          console.error("Error fetching activities:", error)
+        const { data: scriptData, error: scriptError } = await supabase
+          .from('pitch_summary')
+          .select('id, user_id, created_at, score, summary')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        
+        if (analysisError && scriptError) {
+          console.error("Error fetching activities:", analysisError)
           setError("Could not load activities")
           setActivities(getDemoActivities()) // Use demo data on error
           return
         }
         
-        if (!analysisData || analysisData.length === 0) {
-          console.log("No activities found")
-          setActivities([])
-          return
-        }
-        
-        console.log(`Found ${analysisData.length} activities`)
-        
-        // Process activities
-        const processedActivities = analysisData.map(item => ({
+        // Process conversation analysis activities
+        const conversationActivities = analysisData ? analysisData.map(item => ({
           id: item.id,
           user_id: item.user_id,
           type: 'analysis',
@@ -115,9 +114,35 @@ export function RecentActivity({ extended = false }: RecentActivityProps) {
           created_at: item.created_at,
           icon: iconMap['analysis'],
           time: formatRelativeTime(item.created_at)
-        }))
+        })) : [];
         
-        setActivities(processedActivities)
+        // Process script analysis activities
+        const scriptActivities = scriptData ? scriptData.map(item => ({
+          id: item.id,
+          user_id: item.user_id,
+          type: 'script',
+          title: item.summary 
+            ? `Script: ${item.summary.substring(0, 30)}...` 
+            : "Script Analysis",
+          score: item.score * 10, // Convert score to percentage (assuming score is 0-10)
+          created_at: item.created_at,
+          icon: iconMap['script'],
+          time: formatRelativeTime(item.created_at)
+        })) : [];
+        
+        // Combine activities and sort by date
+        const allActivities = [...conversationActivities, ...scriptActivities]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, limit);
+        
+        console.log(`Found ${allActivities.length} total activities`);
+        
+        if (allActivities.length === 0) {
+          setActivities([])
+          return
+        }
+        
+        setActivities(allActivities)
       } catch (err: any) {
         console.error("Error loading activities:", err.message)
         setError("Could not load activities")
@@ -147,11 +172,11 @@ export function RecentActivity({ extended = false }: RecentActivityProps) {
       {
         id: "demo-2",
         user_id: "demo",
-        type: "analysis",
-        title: "Demo: Product demonstration call",
+        type: "script",
+        title: "Demo: Product demo script analysis",
         score: 85,
         created_at: new Date(now.getTime() - 86400000).toISOString(), // 1 day ago
-        icon: BarChart3,
+        icon: ScrollText,
         time: "1 day ago"
       },
       {
