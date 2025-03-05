@@ -3,14 +3,17 @@
 import { useState, useEffect } from 'react';
 import { analyzeScript } from '@/app/ai/script-analysis/service/scriptAnalysisService';
 import ScriptResultsDisplay from '@/app/ai/script-analysis/components/ScriptResultsDisplay';
+import { FileUploadHandler } from '@/app/ai/script-analysis/components/FileUploadHandler';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { checkSupabaseSession } from "@/lib/supabase";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface ScriptAnalysisFormProps {
   initialScript?: string;
+  initialMethod?: string;
 }
 
-export default function ScriptAnalysisForm({ initialScript = '' }: ScriptAnalysisFormProps) {
+export default function ScriptAnalysisForm({ initialScript = '', initialMethod = 'paste' }: ScriptAnalysisFormProps) {
   const supabase = createClientComponentClient();
   const [script, setScript] = useState<string>(initialScript);
   const [targetAudience, setTargetAudience] = useState<string>('');
@@ -18,14 +21,19 @@ export default function ScriptAnalysisForm({ initialScript = '' }: ScriptAnalysi
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inputMethod, setInputMethod] = useState<string>(initialMethod);
+  const [fileUploaded, setFileUploaded] = useState<boolean>(!!initialScript && initialMethod === 'upload');
   const [sessionStatus, setSessionStatus] = useState({ checked: false, exists: false });
 
   // Effect to update the script state if initialScript changes
   useEffect(() => {
     if (initialScript) {
       setScript(initialScript);
+      setInputMethod(initialMethod);
+      // If we have initial text and method is upload, consider file as uploaded
+      setFileUploaded(!!initialScript && initialMethod === 'upload');
     }
-  }, [initialScript]);
+  }, [initialScript, initialMethod]);
 
   // Verificar la sesión al cargar el componente
   useEffect(() => {
@@ -98,6 +106,19 @@ export default function ScriptAnalysisForm({ initialScript = '' }: ScriptAnalysi
     }
   };
 
+  const handleTextExtracted = (text: string) => {
+    setScript(text);
+    setFileUploaded(true); // Mark that a file has been uploaded and processed
+  };
+
+  const handleTabChange = (value: string) => {
+    setInputMethod(value);
+    // Reset file uploaded state when switching back to upload tab
+    if (value === 'upload' && !fileUploaded) {
+      setScript(''); // Clear script when switching to upload if no file is uploaded
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="p-6 border-b">
@@ -141,20 +162,62 @@ export default function ScriptAnalysisForm({ initialScript = '' }: ScriptAnalysi
           </div>
           
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sales Script <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Paste your complete sales script here..."
-              rows={12}
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              For best results, include your complete script with all talking points, objection handling, and closes.
-            </p>
+            <Tabs value={inputMethod} onValueChange={handleTabChange} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="paste">Paste Script</TabsTrigger>
+                <TabsTrigger value="upload">Upload File</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="paste">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sales Script <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={script}
+                  onChange={(e) => setScript(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Paste your complete sales script here..."
+                  rows={12}
+                  required={inputMethod === 'paste'}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  For best results, include your complete script with all talking points, objection handling, and closes.
+                </p>
+              </TabsContent>
+              
+              <TabsContent value="upload">
+                {!fileUploaded ? (
+                  <FileUploadHandler onTextExtracted={handleTextExtracted} />
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Extracted Script
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileUploaded(false);
+                          setScript('');
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Upload Another File
+                      </button>
+                    </div>
+                    <textarea
+                      value={script}
+                      onChange={(e) => setScript(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      rows={12}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      You can edit the extracted text if needed before analysis.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
           
           <div>

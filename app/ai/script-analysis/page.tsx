@@ -10,6 +10,7 @@ export default function ScriptAnalysisPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialScript = searchParams ? searchParams.get("script") || "" : "";
+  const method = searchParams ? searchParams.get("method") || "paste" : "paste";
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const supabase = createClientComponentClient();
@@ -74,7 +75,7 @@ export default function ScriptAnalysisPage() {
       />
       
       <main className="flex-1 container mx-auto py-6 px-4">
-        <ScriptAnalysisForm initialScript={initialScript} />
+        <ScriptAnalysisForm initialScript={initialScript} initialMethod={method} />
       </main>
       
       {/* Feature description section */}
